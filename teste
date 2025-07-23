@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feliz Aniversário, Alexie!</title>
+    <!-- Carrega o Tailwind CSS para estilização -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Define a fonte Inter como padrão para o corpo do documento */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl p-8 md:p-12 max-w-2xl w-full text-center transform transition-all duration-500 hover:scale-105">
+        <!-- Título principal -->
+        <h1 class="text-5xl md:text-6xl font-extrabold text-gray-800 mb-6 drop-shadow-lg">Alexie</h1>
+
+        <!-- Imagem com bordas arredondadas e sombra -->
+        <div class="mb-8 flex justify-center">
+            <!-- Placeholder para a imagem, tentando replicar o estilo da ilustração com um laço rosa -->
+            <img src="https://placehold.co/300x300/F06292/FFFFFF?text=Alexie%0A%2B%0ALaço" alt="Ilustração de Alexie com um laço rosa" class="rounded-full border-4 border-pink-300 shadow-xl w-48 h-48 object-cover">
+        </div>
+
+        <!-- Mensagem de aniversário -->
+        <p class="text-lg md:text-xl text-gray-700 leading-relaxed mb-6">
+            Lembro-me vagamente de quando nos conhecemos, vieste até mim após um caso de ciúmes de alguém que não vale a pena mencionar. Eu ainda não sabia que você iria fazer parte de tantos anos da minha vida, tempo esse que presenciamos a lenta e sutil mudança um do outro.
+        </p>
+        <p class="text-lg md:text-xl text-gray-700 leading-relaxed mb-8">
+            Apesar disso você ainda faz parte de mim e mesmo quando afastados a parte de você que existe em mim impacta em minhas ações todos os dias. Fico contente em comemorar mais um ano de vida de uma pessoa tão maravilhosa, delicada e sensível que torna este mundo um lugar melhor.
+        </p>
+
+        <!-- Saudação final -->
+        <h2 class="text-4xl md:text-5xl font-bold text-pink-600 animate-pulse">Feliz aniversário Alexie!!</h2>
+    </div>
+</body>
+</html>
