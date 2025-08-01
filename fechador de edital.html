@@ -1,0 +1,1444 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acompanhamento de Estudos - Assistente Técnico Administrativo</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: "Inter", sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .subject-card, .section-card {
+            background-color: #ffffff;
+            border-radius: 1rem; /* More rounded corners */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Softer shadow */
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .topic-item, .schedule-item, .review-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #e2e8f0; /* Lighter border */
+        }
+        .topic-item:last-child, .schedule-item:last-child, .review-item:last-child {
+            border-bottom: none;
+        }
+        .status-select, .date-input, .time-input, .text-input {
+            padding: 0.4rem 0.6rem;
+            border-radius: 0.5rem;
+            border: 1px solid #cbd5e1;
+            background-color: #f8fafc;
+            font-size: 0.875rem;
+            color: #475569;
+        }
+        .date-input, .time-input {
+            width: 120px; /* Fixed width for date/time input */
+        }
+        .progress-bar-container {
+            background-color: #e2e8f0;
+            border-radius: 9999px;
+            height: 0.75rem;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+        .progress-bar {
+            background-color: #3b82f6; /* Blue progress bar */
+            height: 100%;
+            transition: width 0.5s ease-in-out;
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            flex-direction: column;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .message-box {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #4CAF50; /* Green for success */
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 1001;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        .message-box.show {
+            opacity: 1;
+        }
+        .btn-primary {
+            @apply bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors duration-200;
+        }
+        .btn-secondary {
+            @apply bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors duration-200;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #334155;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 0.6rem;
+            border-radius: 0.5rem;
+            border: 1px solid #cbd5e1;
+            background-color: #f8fafc;
+            font-size: 0.9rem;
+        }
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        /* Sidebar specific styles */
+        .sidebar-nav-link.active-nav-link {
+            background-color: #e0f2fe; /* Light blue for active link */
+            color: #1d4ed8; /* Darker blue text */
+            font-weight: 600;
+        }
+        .sidebar-module-toggle {
+            cursor: pointer;
+            font-weight: 600;
+            color: #334155;
+            padding: 0.5rem 0;
+            display: flex;
+            align-items: center;
+        }
+        .sidebar-module-toggle svg {
+            transition: transform 0.2s ease-in-out;
+        }
+        .sidebar-module-toggle.collapsed svg {
+            transform: rotate(-90deg);
+        }
+        .sidebar-subject-list {
+            padding-left: 1rem;
+            border-left: 2px solid #e2e8f0;
+            margin-top: 0.5rem;
+        }
+        .sidebar-subject-link {
+            display: block;
+            padding: 0.4rem 0.75rem;
+            border-radius: 0.5rem;
+            color: #475569;
+            transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+        }
+        .sidebar-subject-link:hover {
+            background-color: #f0f4f8;
+            color: #2563eb;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex">
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <p class="mt-4 text-lg text-gray-700">Carregando seu progresso...</p>
+    </div>
+
+    <div id="messageBox" class="message-box"></div>
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white shadow-lg flex flex-col">
+        <!-- Logo/Header of Sidebar -->
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-2xl font-bold text-gray-800">Estudos Concurso</h2>
+        </div>
+
+        <!-- Main Navigation -->
+        <nav class="flex-grow p-4 space-y-2">
+            <a href="#" id="navOverview" class="sidebar-nav-link flex items-center p-3 rounded-lg text-gray-700 hover:bg-blue-100 hover:text-blue-700 active-nav-link">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                Visão Geral
+            </a>
+            <a href="#" id="navSchedule" class="sidebar-nav-link flex items-center p-3 rounded-lg text-gray-700 hover:bg-blue-100 hover:text-blue-700">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                Cronograma
+            </a>
+            <a href="#" id="navReviews" class="sidebar-nav-link flex items-center p-3 rounded-lg text-gray-700 hover:bg-blue-100 hover:text-blue-700">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                Revisões Manuais
+            </a>
+        </nav>
+
+        <!-- Dynamic Modules and Subjects -->
+        <div id="sidebarModules" class="p-4 border-t border-gray-200">
+            <!-- Modules and subjects will be dynamically loaded here -->
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+        <!-- Header (existing) -->
+        <header class="bg-blue-600 text-white p-6 shadow-md">
+            <div class="container flex flex-col sm:flex-row justify-between items-center">
+                <h1 class="text-3xl font-bold mb-2 sm:mb-0">Meu Plano de Estudos</h1>
+                <div class="text-sm">
+                    <p>Cargo: Assistente Técnico Administrativo - Nível Médio</p>
+                    <p id="userIdDisplay" class="mt-1">ID do Usuário: Carregando...</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main content -->
+        <main class="flex-1 overflow-y-auto p-8">
+            <!-- Overall Progress (now part of syllabus section logic) -->
+            <div id="overallProgress" class="bg-white p-6 rounded-xl shadow-md mb-8">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">Progresso Geral</h2>
+                <div class="progress-bar-container">
+                    <div id="overallProgressBar" class="progress-bar" style="width: 0%;"></div>
+                </div>
+                <p id="overallProgressText" class="text-gray-600 text-sm mt-2">0% Concluído</p>
+            </div>
+
+            <!-- Syllabus Section -->
+            <section id="syllabusSection" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Subjects will be loaded here by JavaScript -->
+            </section>
+
+            <!-- Schedule Section -->
+            <section id="scheduleSection" class="hidden">
+                <div class="section-card">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-4">Adicionar Item ao Cronograma</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="form-group">
+                            <label for="scheduleSubject">Matéria:</label>
+                            <select id="scheduleSubject" class="form-control">
+                                <option value="">Selecione a Matéria</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="scheduleTopic">Tópico:</label>
+                            <select id="scheduleTopic" class="form-control" disabled>
+                                <option value="">Selecione o Tópico</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="scheduleDate">Data:</label>
+                            <input type="date" id="scheduleDate" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="scheduleTime">Hora:</label>
+                            <input type="time" id="scheduleTime" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="scheduleNotes">Notas:</label>
+                        <textarea id="scheduleNotes" class="form-control" placeholder="Adicione notas sobre a sessão de estudo"></textarea>
+                    </div>
+                    <button id="addScheduleBtn" class="btn-primary mt-4">Adicionar ao Cronograma</button>
+                </div>
+
+                <div class="section-card mt-6">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-4">Próximas Sessões</h2>
+                    <div id="upcomingScheduleList" class="space-y-2">
+                        <p class="text-gray-600">Nenhuma sessão agendada.</p>
+                    </div>
+                </div>
+
+                <div class="section-card mt-6">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-4">Sessões Anteriores</h2>
+                    <div id="pastScheduleList" class="space-y-2">
+                        <p class="text-gray-600">Nenhuma sessão anterior.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Reviews Section -->
+            <section id="reviewsSection" class="hidden">
+                <div class="section-card">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-4">Tópicos para Revisão Manual</h2>
+                    <div id="topicsForReviewList" class="space-y-2">
+                        <p class="text-gray-600">Nenhum tópico marcado para revisão.</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer (existing) -->
+        <footer class="bg-gray-800 text-white p-4 text-center text-sm">
+            <p>&copy; 2025 Acompanhamento de Estudos. Todos os direitos reservados.</p>
+        </footer>
+    </div>
+</body>
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables for Firebase configuration and app ID
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let app;
+        let db;
+        let auth;
+        let currentUserId = null;
+        let isAuthReady = false;
+
+        // --- Utility Functions ---
+        function showMessageBox(message, type = 'success') {
+            const messageBox = document.getElementById('messageBox');
+            if (messageBox) { // Defensive check
+                messageBox.textContent = message;
+                messageBox.className = `message-box show bg-${type === 'success' ? 'green' : 'red'}-500`;
+                setTimeout(() => {
+                    messageBox.classList.remove('show');
+                }, 3000);
+            } else {
+                console.error("MessageBox element not found.");
+            }
+        }
+
+        // --- Syllabus Data (New Nested Structure) ---
+        const syllabusModules = [
+            {
+                id: "modulo-1",
+                name: "MÓDULO I - CONHECIMENTOS GERAIS",
+                subjects: {
+                    "Língua Portuguesa": [
+                        "Compreensão e interpretação de texto.", "Tipologia e gêneros textuais.", "Figuras de linguagem.",
+                        "Significação de palavras e expressões.", "Relações de sinonímia e de antonímia.", "Ortografia.",
+                        "Acentuação gráfica.", "Uso da crase.", "Morfologia: classes de palavras variáveis e invariáveis e seus empregos no texto.",
+                        "Locuções verbais (perífrases verbais).", "Funções do 'que' e do 'se'.", "Formação de palavras.",
+                        "Elementos de comunicação.", "Sintaxe: relações sintático-semânticas estabelecidas entre orações, períodos ou parágrafos (período simples e período composto por coordenação e subordinação).",
+                        "Concordância verbal e nominal.", "Regência verbal e nominal.", "Colocação pronominal.",
+                        "Emprego dos sinais de pontuação e sua função no texto.", "Elementos de coesão.", "Função textual dos vocábulos.",
+                        "Variação linguística."
+                    ],
+                    "Estatística": [
+                        "Conceitos básicos de estatística: população, amostra, variável, dados.",
+                        "Tipos de variáveis: qualitativas (nominal, ordinal) e quantitativas (discreta, contínua).",
+                        "Tabelas e gráficos: frequência absoluta e relativa, gráficos de barras, setores, histogramas.",
+                        "Medidas de tendência central: média, mediana, moda.",
+                        "Medidas de dispersão: amplitude, variância, desvio padrão.",
+                        "Noções de probabilidade: experimento aleatório, evento, espaço amostral, probabilidade condicional.",
+                        "Distribuições de probabilidade: binomial e normal (conceitos básicos).",
+                        "Noções de amostragem: tipos de amostragem (aleatória simples, estratificada, sistemática).",
+                        "Inferência estatística: estimação de parâmetros (intervalo de confiança para média e proporção).",
+                        "Testes de hipóteses: conceitos básicos, teste t de Student, teste qui-quadrado (aplicações simples)."
+                    ],
+                    "Administração Pública": [
+                        "Estado, governo e administração pública; Conceitos.", "Direito administrativo; Conceito, Objeto, Fontes.",
+                        "Ato administrativo; Conceito, requisitos, atributos, classificação e espécies; Extinção do ato administrativo e convalidação; Decadência administrativa.",
+                        "Agentes públicos; Disposições constitucionais aplicáveis; Conceito e espécies; Cargo, emprego e função pública; Provimento e vacância. Efetividade, estabilidade e vitaliciedade; Remuneração, vencimento e subsídio; Direitos e deveres; Responsabilidade; Processo administrativo disciplinar; Concurso público.",
+                        "Poderes da administração pública; Hierárquico, disciplinar, regulamentar e de polícia; Uso e abuso do poder.",
+                        "Regime jurídico-administrativo; Conceito; Princípios expressos e implícitos da administração pública.",
+                        "Responsabilidade civil do Estado; Evolução histórica; Responsabilidade por ato comissivo do Estado; Responsabilidade por omissão do Estado. Requisitos para a demonstração da responsabilidade do Estado; Causas excludentes e atenuantes da responsabilidade do Estado; Reparação do dano; Direito de regresso.",
+                        "Serviços públicos; Conceito; Elementos constitutivos; Formas de prestação e meios de execução; Delegação: concessão, permissão e autorização; Classificação; Princípios; Parceria público-privada.",
+                        "Organização administrativa; Centralização, descentralização, concentração e desconcentração; Administração direta e indireta; Autarquias, fundações, empresas públicas e sociedades de economia mista; Entidades paraestatais e terceiro setor: serviços sociais autônomos, entidades de apoio, organizações sociais, organizações da sociedade civil de interesse público.",
+                        "Controle da administração pública; Controle exercido pela administração pública; Controle judicial; Controle legislativo.",
+                        "Licitações e contratos administrativos: Lei 13.303/2016.",
+                        "Improbidade Administrativa: Lei nº 8.429/1992.",
+                        "Lei de acesso à informação (Lei federal nº 12.527/2011).",
+                        "Regulamento Interno de Licitações e Contratos da Codern - NR 1012.01."
+                    ],
+                    "Controle Externo": [
+                        "Conceito e finalidade do controle externo.",
+                        "Tribunais de Contas: natureza jurídica, organização e competência.",
+                        "Funções dos Tribunais de Contas: fiscalizadora, consultiva, judicante, sancionatória e informativa.",
+                        "Controle de constitucionalidade das leis e atos normativos.",
+                        "Tomada e prestação de contas: conceitos, tipos e finalidades.",
+                        "Fiscalização contábil, financeira, orçamentária, operacional e patrimonial.",
+                        "Atos sujeitos a registro: aposentadorias, reformas e pensões.",
+                        "Responsabilidade dos gestores públicos: infrações e sanções.",
+                        "Lei de Responsabilidade Fiscal (Lei Complementar nº 101/2000): princípios, objetivos e limites.",
+                        "Auditoria governamental: conceitos, tipos e fases.",
+                        "Processo de contas nos Tribunais de Contas.",
+                        "Acórdãos e decisões dos Tribunais de Contas: efeitos e recursos.",
+                        "Denúncias e representações ao Tribunal de Contas."
+                    ],
+                    "Noções de Contabilidade Pública": [
+                        "Conceito, objeto e campo de aplicação da Contabilidade Pública.",
+                        "Regime de caixa e regime de competência.",
+                        "Princípios de Contabilidade Aplicados ao Setor Público (PCASP).",
+                        "Plano de Contas Aplicado ao Setor Público (PCASP): estrutura e finalidade.",
+                        "Receita Pública: conceito, classificação, estágios e dívida ativa.",
+                        "Despesa Pública: conceito, classificação, estágios e restos a pagar.",
+                        "Variações Patrimoniais: aumentativas e diminutivas.",
+                        "Balanços Contábeis: Balanço Orçamentário, Balanço Financeiro, Balanço Patrimonial e Demonstração dos Fluxos de Caixa (DFC).",
+                        "Demonstração das Mutações do Patrimônio Líquido (DMPL).",
+                        "Consolidação das contas públicas.",
+                        "Sistema Integrado de Administração Financeira do Governo Federal (SIAFI): conceitos básicos.",
+                    ],
+                    "Noções de Análise de Dados e IA": [
+                        "Conceitos básicos de dados: tipos de dados (numéricos, textuais, categóricos), fontes de dados.",
+                        "Ciclo de vida dos dados: coleta, armazenamento, processamento, análise, visualização.",
+                        "Ferramentas de análise de dados: planilhas eletrônicas (Excel, Google Sheets), bancos de dados (SQL básico).",
+                        "Visualização de dados: tipos de gráficos (barras, linhas, pizza, dispersão), dashboards.",
+                        "Conceitos de Inteligência Artificial (IA): definição, histórico, aplicações.",
+                        "Tipos de IA: aprendizado de máquina (machine learning), processamento de linguagem natural (PLN), visão computacional.",
+                        "Aprendizado de máquina: conceitos básicos (supervisionado, não supervisionado, por reforço).",
+                        "Algoritmos de aprendizado de máquina: regressão linear, árvores de decisão, k-means (conceitos).",
+                        "Ética em IA: viés, privacidade, transparência.",
+                        "Impacto da IA na administração pública: otimização de processos, tomada de decisão, atendimento ao cidadão."
+                    ]
+                }
+            },
+            {
+                id: "modulo-2",
+                name: "MÓDULO II - CONHECIMENTOS DE LEGISLAÇÃO",
+                subjects: {
+                    "Direito Constitucional": [
+                        "Constituição Federal de 1988: Princípios Fundamentais (Art. 1º ao 4º).",
+                        "Direitos e Deveres Individuais e Coletivos (Art. 5º).",
+                        "Direitos Sociais (Art. 6º ao 11).",
+                        "Nacionalidade (Art. 12 e 13).",
+                        "Direitos Políticos (Art. 14 ao 16).",
+                        "Organização do Estado: União, Estados Federados, Municípios e Distrito Federal (Art. 18 e 19).",
+                        "Administração Pública: Disposições Gerais (Art. 37 ao 41).",
+                        "Poder Legislativo: Estrutura e Atribuições do Congresso Nacional (Art. 44 ao 69).",
+                        "Poder Executivo: Atribuições do Presidente da República (Art. 76 ao 84).",
+                        "Poder Judiciário: Disposições Gerais (Art. 92 ao 126).",
+                        "Funções Essenciais à Justiça: Ministério Público, Advocacia Pública, Defensoria Pública (Art. 127 ao 135).",
+                        "Defesa do Estado e das Instituições Democráticas: Estado de Defesa e Estado de Sítio (Art. 136 ao 144).",
+                        "Sistema Tributário Nacional: Princípios Gerais (Art. 145 ao 162).",
+                        "Ordem Econômica e Financeira: Princípios Gerais (Art. 170 ao 181).",
+                        "Ordem Social: Seguridade Social, Educação, Saúde, Cultura, Desporto (Art. 193 ao 232).",
+                        "Emendas Constitucionais.",
+                        "Controle de Constitucionalidade: Ação Direta de Inconstitucionalidade (ADI), Ação Declaratória de Constitucionalidade (ADC), Arguição de Descumprimento de Preceito Fundamental (ADPF).",
+                        "Súmulas Vinculantes.",
+                        "Repartição de Competências Legislativas.",
+                        "Processo Legislativo."
+                    ],
+                    "Direito Administrativo": [
+                        "Estado, governo e administração pública; Conceitos.", "Direito administrativo; Conceito, Objeto, Fontes.",
+                        "Ato administrativo; Conceito, requisitos, atributos, classificação e espécies; Extinção do ato administrativo e convalidação; Decadência administrativa.",
+                        "Agentes públicos; Disposições constitucionais aplicáveis; Conceito e espécies; Cargo, emprego e função pública; Provimento e vacância. Efetividade, estabilidade e vitaliciedade; Remuneração, vencimento e subsídio; Direitos e deveres; Responsabilidade; Processo administrativo disciplinar; Concurso público.",
+                        "Poderes da administração pública; Hierárquico, disciplinar, regulamentar e de polícia; Uso e abuso do poder.",
+                        "Regime jurídico-administrativo; Conceito; Princípios expressos e implícitos da administração pública.",
+                        "Responsabilidade civil do Estado; Evolução histórica; Responsabilidade por ato comissivo do Estado; Responsabilidade por omissão do Estado. Requisitos para a demonstração da responsabilidade do Estado; Causas excludentes e atenuantes da responsabilidade do Estado; Reparação do dano; Direito de regresso.",
+                        "Serviços públicos; Conceito; Elementos constitutivos; Formas de prestação e meios de execução; Delegação: concessão, permissão e autorização; Classificação; Princípios; Parceria público-privada.",
+                        "Organização administrativa; Centralização, descentralização, concentração e desconcentração; Administração direta e indireta; Autarquias, fundações, empresas públicas e sociedades de economia mista; Entidades paraestatais e terceiro setor: serviços sociais autônomos, entidades de apoio, organizações sociais, organizações da sociedade civil de interesse público.",
+                        "Controle da administração pública; Controle exercido pela administração pública; Controle judicial; Controle legislativo.",
+                        "Licitações e contratos administrativos: Lei 13.303/2016.",
+                        "Improbidade Administrativa: Lei nº 8.429/1992.",
+                        "Lei de acesso à informação (Lei federal nº 12.527/2011).",
+                        "Regulamento Interno de Licitações e Contratos da Codern - NR 1012.01."
+                    ],
+                    "Direito Financeiro": [
+                        "Conceito e objeto do Direito Financeiro.",
+                        "Fontes do Direito Financeiro.",
+                        "Atividade Financeira do Estado: conceito e elementos.",
+                        "Orçamento Público: conceito, princípios orçamentários, espécies orçamentárias (orçamento-programa, orçamento tradicional).",
+                        "Ciclo Orçamentário: PPA, LDO, LOA.",
+                        "Créditos Adicionais: suplementares, especiais e extraordinários.",
+                        "Receita Pública: conceito, classificação e estágios.",
+                        "Despesa Pública: conceito, classificação e estágios.",
+                        "Restos a Pagar e Despesas de Exercícios Anteriores.",
+                        "Dívida Pública: conceito, classificação e limites.",
+                        "Lei de Responsabilidade Fiscal (Lei Complementar nº 101/2000): princípios, objetivos, limites e vedações.",
+                        "Controle da execução orçamentária: controle interno e externo.",
+                        "Fiscalização contábil, orçamentária, financeira, operacional e patrimonial.",
+                        "Crimes contra as finanças públicas."
+                    ],
+                    "Direito Civil": [
+                        "Lei de Introdução às Normas do Direito Brasileiro (LINDB).",
+                        "Pessoas naturais: personalidade, capacidade, direitos da personalidade, início e fim da pessoa natural, comoriência, ausência.",
+                        "Pessoas jurídicas: conceito, classificação, desconsideração da personalidade jurídica.",
+                        "Bens: conceito, classificação (móveis, imóveis, fungíveis, infungíveis, consumíveis, inconsumíveis, divisíveis, indivisíveis, singulares, coletivos).",
+                        "Fatos jurídicos: conceito, classificação (naturais, humanos), atos jurídicos lícitos e ilícitos.",
+                        "Negócio jurídico: conceito, elementos (essenciais, acidentais, naturais), defeitos (erro, dolo, coação, estado de perigo, lesão, fraude contra credores), invalidade (nulidade, anulabilidade).",
+                        "Prescrição e decadência: conceitos, prazos, causas que impedem, suspendem ou interrompem.",
+                        "Obrigações: conceito, fontes, modalidades (dar, fazer, não fazer), transmissão, adimplemento e extinção, inadimplemento.",
+                        "Contratos: conceito, princípios, classificação, formação, vícios redibitórios, evicção, extinção.",
+                        "Responsabilidade Civil: conceito, pressupostos (ato ilícito, dano, nexo causal, culpa), espécies (contratual, extracontratual, objetiva, subjetiva), excludentes de responsabilidade.",
+                        "Direitos Reais: propriedade, posse, direitos reais sobre coisas alheias (usufruto, servidão, hipoteca, penhor).",
+                        "Família: casamento, união estável, divórcio, alimentos, filiação, poder familiar.",
+                        "Sucessões: sucessão legítima, sucessão testamentária, inventário e partilha."
+                    ],
+                    "Direito Processual Civil": [
+                        "Princípios do Processo Civil.",
+                        "Jurisdição: conceito, características, limites.",
+                        "Ação: conceito, elementos, condições da ação, classificação.",
+                        "Partes e Procuradores: capacidade processual, representação, substituição processual.",
+                        "Competência: conceito, espécies (absoluta, relativa), modificação.",
+                        "Atos Processuais: forma, tempo, lugar, prazos, comunicação (citação, intimação, notificação).",
+                        "Formação, suspensão e extinção do processo.",
+                        "Petição Inicial: requisitos, emenda, indeferimento.",
+                        "Contestação: conceito, princípios, exceções, reconvenção.",
+                        "Revelia: conceito, efeitos.",
+                        "Provas: conceito, objeto, meios (depoimento pessoal, confissão, documentos, testemunhas, perícia, inspeção judicial), ônus da prova.",
+                        "Sentença: conceito, requisitos, efeitos, classificação.",
+                        "Coisa Julgada: formal e material.",
+                        "Recursos: conceito, princípios, espécies (apelação, agravo de instrumento, embargos de declaração, recurso especial, recurso extraordinário), efeitos (devolutivo, suspensivo, translativo).",
+                        "Execução: conceito, espécies (obrigação de fazer, não fazer, entregar coisa, pagar quantia), penhora, leilão, arrematação.",
+                        "Processos de Conhecimento: procedimento comum.",
+                        "Tutela Provisória: urgência e evidência.",
+                        "Ação Rescisória.",
+                        "Recursos nos Tribunais Superiores."
+                    ]
+                }
+            },
+            {
+                id: "modulo-3",
+                name: "MÓDULO III - CONHECIMENTOS ESPECÍFICOS",
+                subjects: {
+                    "Auditoria Governamental": [
+                        "Conceito e finalidade da Auditoria Governamental.",
+                        "Tipos de Auditoria Governamental: conformidade, operacional, financeira, de sistemas.",
+                        "Normas Brasileiras de Auditoria do Setor Público (NBASP): estrutura e aplicação.",
+                        "Planejamento da Auditoria: escopo, objetivos, critérios, riscos, materialidade.",
+                        "Execução da Auditoria: coleta de evidências, técnicas de auditoria (inspeção, observação, indagação, confirmação, cálculo, análise documental).",
+                        "Achados de Auditoria: critérios, condição, causa, efeito.",
+                        "Relatório de Auditoria: estrutura, conteúdo, recomendações.",
+                        "Acompanhamento das recomendações de auditoria.",
+                        "Controle Interno: conceito, objetivos, componentes (COSO).",
+                        "Gestão de Riscos no Setor Público.",
+                        "Fraude e Corrupção na Administração Pública: prevenção e detecção.",
+                        "Auditoria Baseada em Riscos."
+                    ],
+                    "Auditoria de TI": [
+                        "Conceito e objetivos da Auditoria de TI.",
+                        "Normas e frameworks de Auditoria de TI: COBIT, ISO/IEC 27001, ITIL (conceitos básicos).",
+                        "Tipos de Auditoria de TI: segurança da informação, desenvolvimento de sistemas, infraestrutura, continuidade de negócios.",
+                        "Planejamento da Auditoria de TI: escopo, objetivos, riscos, controles.",
+                        "Execução da Auditoria de TI: técnicas de auditoria (revisão de documentos, entrevistas, testes de segurança, análise de logs).",
+                        "Controles de TI: gerais e de aplicação.",
+                        "Segurança da Informação: confidencialidade, integridade, disponibilidade, autenticidade, não repúdio.",
+                        "Gestão de Riscos de TI: identificação, análise, avaliação e tratamento de riscos.",
+                        "Continuidade de Negócios e Recuperação de Desastres.",
+                        "Governança de TI: conceitos e componentes.",
+                        "Relatório de Auditoria de TI: achados, recomendações, plano de ação."
+                    ],
+                    "Governança e Gestão de TI": [
+                        "Conceitos de Governança de TI: definição, objetivos, benefícios.",
+                        "Frameworks de Governança de TI: COBIT (Control Objectives for Information and related Technology) - princípios e componentes.",
+                        "ITIL (Information Technology Infrastructure Library): conceitos, processos (estratégia de serviço, desenho de serviço, transição de serviço, operação de serviço, melhoria contínua de serviço).",
+                        "Gestão de Projetos de TI: PMBOK (conceitos básicos), fases do projeto, gerenciamento de escopo, tempo, custo, qualidade, riscos, comunicação, recursos humanos, aquisições, partes interessadas.",
+                        "Gestão de Serviços de TI: catálogo de serviços, níveis de serviço (SLA), gerenciamento de incidentes, problemas, mudanças, configurações, capacidade, disponibilidade.",
+                        "Alinhamento estratégico entre TI e negócios.",
+                        "Métricas e indicadores de desempenho de TI (KPIs).",
+                        "Comitês de Governança de TI.",
+                        "Legislação e regulamentação aplicáveis à TI (LGPD, Marco Civil da Internet - conceitos básicos).",
+                        "Gestão de Riscos de TI.",
+                        "Cultura organizacional e Governança de TI."
+                    ],
+                    "Infraestrutura e Segurança de TI": [
+                        "Componentes de Hardware: servidores, storages, redes (switches, roteadores), dispositivos de segurança (firewalls, IDS/IPS).",
+                        "Sistemas Operacionais: Windows Server, Linux (conceitos básicos de administração).",
+                        "Redes de Computadores: topologias, protocolos (TCP/IP, HTTP, HTTPS, FTP, DNS), endereçamento IP (IPv4, IPv6).",
+                        "Serviços de Rede: DNS, DHCP, Active Directory (conceitos).",
+                        "Virtualização: conceitos, tipos (servidores, desktops), benefícios.",
+                        "Cloud Computing: modelos de serviço (IaaS, PaaS, SaaS), modelos de implantação (pública, privada, híbrida, comunitária), benefícios e riscos.",
+                        "Segurança da Informação: conceitos, princípios (confidencialidade, integridade, disponibilidade), ameaças (malware, phishing, ransomware, DDoS).",
+                        "Controles de Segurança: físicos, lógicos, administrativos.",
+                        "Criptografia: simétrica e assimétrica (conceitos básicos), certificados digitais.",
+                        "Backup e Recuperação de Dados: estratégias e planos.",
+                        "Gerenciamento de Identidade e Acesso (IAM).",
+                        "Segurança de Redes: firewalls, VPNs, IDS/IPS.",
+                        "Segurança de Aplicações e Bancos de Dados."
+                    ],
+                    "Engenharia de Software": [
+                        "Conceitos de Engenharia de Software: ciclo de vida do software, modelos de desenvolvimento (cascata, iterativo, ágil).",
+                        "Metodologias Ágeis: Scrum, Kanban (conceitos, papéis, cerimônias, artefatos).",
+                        "Requisitos de Software: elicitação, análise, especificação, validação (funcionais e não funcionais).",
+                        "Modelagem de Software: UML (diagramas de caso de uso, classes, atividades, sequência - conceitos básicos).",
+                        "Arquitetura de Software: padrões arquiteturais (MVC, Camadas), microsserviços (conceitos).",
+                        "Qualidade de Software: testes (unitário, integração, sistema, aceitação), métricas de qualidade.",
+                        "Gerenciamento de Configuração de Software: controle de versão (Git - conceitos básicos).",
+                        "Manutenção de Software: tipos (corretiva, adaptativa, perfectiva, preventiva).",
+                        "Padrões de Projeto (Design Patterns): conceitos básicos (Factory, Singleton, Observer).",
+                        "Engenharia de Usabilidade: princípios de usabilidade, design de interface do usuário (UI/UX).",
+                        "DevOps: conceitos, integração contínua (CI), entrega contínua (CD)."
+                    ],
+                    "Ciência de Dados e IA": [
+                        "Conceitos de Ciência de Dados: definição, etapas do processo (coleta, limpeza, exploração, modelagem, comunicação).",
+                        "Tipos de Dados: estruturados, semiestruturados, não estruturados.",
+                        "Limpeza e Preparação de Dados: tratamento de valores ausentes, inconsistências, normalização.",
+                        "Análise Exploratória de Dados (EDA): estatística descritiva, visualização de dados.",
+                        "Modelagem de Dados: conceitos de banco de dados relacionais e não relacionais (NoSQL).",
+                        "Conceitos de Inteligência Artificial (IA): definição, histórico, subáreas (aprendizado de máquina, PLN, visão computacional).",
+                        "Aprendizado de Máquina (Machine Learning): conceitos (supervisionado, não supervisionado, por reforço), tipos de problemas (regressão, classificação, clustering).",
+                        "Algoritmos de Machine Learning: Regressão Linear, Regressão Logística, Árvores de Decisão, K-Means, Redes Neurais (conceitos básicos).",
+                        "Avaliação de Modelos: métricas de desempenho (acurácia, precisão, recall, F1-score, erro quadrático médio).",
+                        "Processamento de Linguagem Natural (PLN): conceitos básicos, tokenização, lematização, análise de sentimento.",
+                        "Visão Computacional: conceitos básicos, reconhecimento de imagens, detecção de objetos.",
+                        "Deep Learning: conceitos básicos de redes neurais profundas.",
+                        "Ética em Ciência de Dados e IA: viés algorítmico, privacidade, segurança.",
+                        "Ferramentas e Linguagens: Python (bibliotecas como Pandas, NumPy, Scikit-learn), R (conceitos)."
+                    ]
+                }
+            }
+        ];
+
+        // --- Data Management Module ---
+        const DataManager = (function() {
+            let userProgress = {}; // Stores the user's progress data, schedule, and review topics
+
+            /**
+             * Initializes the user's progress data structure based on the syllabus.
+             * This is called if no existing progress is found in Firestore.
+             */
+            function initializeUserProgress() {
+                const initialProgress = {};
+                syllabusModules.forEach(module => {
+                    for (const subject in module.subjects) {
+                        initialProgress[subject] = module.subjects[subject].map(topic => ({
+                            name: topic,
+                            status: "Não Iniciado",
+                            completionDate: "",
+                            needsReview: false, // New property for manual review
+                            reviewNotes: ""     // New property for review notes
+                        }));
+                    }
+                });
+                initialProgress.schedule = []; // Initialize empty schedule array for cronograma
+                userProgress = initialProgress;
+                saveProgress(); // Save initial state to Firestore
+            }
+
+            /**
+             * Saves the current user progress data to Firestore.
+             * Includes defensive checks for Firebase authentication readiness.
+             */
+            async function saveProgress() {
+                if (!isAuthReady || !currentUserId) {
+                    console.warn("Firebase Auth não está pronto ou userId não disponível para salvar.");
+                    return;
+                }
+
+                const userDocRef = doc(db, `artifacts/${appId}/users/${currentUserId}/progress`, 'syllabusProgress');
+                try {
+                    // Stringify the entire userProgress object to handle complex nested structures safely in Firestore.
+                    await setDoc(userDocRef, { data: JSON.stringify(userProgress) });
+                    console.log("Progresso salvo com sucesso!");
+                    showMessageBox("Progresso salvo com sucesso!");
+                } catch (e) {
+                    console.error("Erro ao salvar o progresso: ", e);
+                    showMessageBox("Erro ao salvar o progresso.", "error");
+                }
+            }
+
+            /**
+             * Loads user progress data from Firestore using a real-time listener (onSnapshot).
+             * If no data exists, it initializes new progress.
+             */
+            async function loadProgress() {
+                if (!isAuthReady || !currentUserId) {
+                    console.warn("Firebase Auth não está pronto ou userId não disponível para carregar.");
+                    return;
+                }
+
+                const userDocRef = doc(db, `artifacts/${appId}/users/${currentUserId}/progress`, 'syllabusProgress');
+                try {
+                    onSnapshot(userDocRef, (docSnap) => {
+                        if (docSnap.exists()) {
+                            const data = docSnap.data().data;
+                            userProgress = JSON.parse(data);
+                            console.log("Progresso carregado com sucesso!");
+                            // Ensure UIManager is initialized before rendering
+                            if (UIManager.isInitialized()) {
+                                UIManager.renderAllSections();
+                                UIManager.updateOverallProgress();
+                                UIManager.renderSidebar(); // Render sidebar after data is loaded
+                            } else {
+                                // If UIManager is not yet initialized, it will render once it is ready.
+                                // This scenario is less likely with DOMContentLoaded, but adds robustness.
+                                console.warn("UIManager não está pronto para renderizar. Renderização será adiada.");
+                            }
+                        } else {
+                            console.log("Nenhum progresso encontrado, inicializando novo.");
+                            initializeUserProgress(); // This will trigger a save, and then onSnapshot will re-fire
+                        }
+                        document.getElementById('loadingOverlay').style.display = 'none';
+                    }, (error) => {
+                        console.error("Erro ao ouvir o progresso: ", error);
+                        showMessageBox("Erro ao carregar o progresso.", "error");
+                        document.getElementById('loadingOverlay').style.display = 'none';
+                    });
+                } catch (e) {
+                    console.error("Erro ao carregar o progresso: ", e);
+                    showMessageBox("Erro ao carregar o progresso.", "error");
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                }
+            }
+
+            /**
+             * Returns the current user progress object.
+             * @returns {object} The user's progress data.
+             */
+            function getProgress() {
+                return userProgress;
+            }
+
+            /**
+             * Updates the status and completion date of a specific topic.
+             * @param {string} subject - The subject name.
+             * @param {number} topicIndex - The index of the topic within the subject.
+             * @param {string} status - The new status ("Não Iniciado", "Em Andamento", "Concluído").
+             * @param {string} [completionDate=""] - The completion date in YYYY-MM-DD format.
+             */
+            function updateTopicStatus(subject, topicIndex, status, completionDate = "") {
+                if (userProgress[subject] && userProgress[subject][topicIndex]) {
+                    userProgress[subject][topicIndex].status = status;
+                    userProgress[subject][topicIndex].completionDate = completionDate;
+                    saveProgress();
+                } else {
+                    console.error(`Tópico não encontrado: ${subject}, índice ${topicIndex}`);
+                }
+            }
+
+            /**
+             * Updates the review status and notes for a specific topic.
+             * @param {string} subject - The subject name.
+             * @param {number} topicIndex - The index of the topic within the subject.
+             * @param {boolean} needsReview - True if the topic needs review, false otherwise.
+             * @param {string} [reviewNotes=""] - Notes for the review.
+             */
+            function updateTopicReviewStatus(subject, topicIndex, needsReview, reviewNotes = "") {
+                if (userProgress[subject] && userProgress[subject][topicIndex]) {
+                    userProgress[subject][topicIndex].needsReview = needsReview;
+                    userProgress[subject][topicIndex].reviewNotes = reviewNotes;
+                    saveProgress();
+                } else {
+                    console.error(`Tópico para revisão não encontrado: ${subject}, índice ${topicIndex}`);
+                }
+            }
+
+            /**
+             * Adds a new item to the study schedule.
+             * @param {object} item - The schedule item object.
+             */
+            function addScheduleItem(item) {
+                if (userProgress.schedule) {
+                    userProgress.schedule.push({ id: crypto.randomUUID(), ...item });
+                    saveProgress();
+                } else {
+                    console.error("Array de cronograma não inicializado.");
+                }
+            }
+
+            /**
+             * Deletes a schedule item by its ID.
+             * @param {string} id - The ID of the schedule item to delete.
+             */
+            function deleteScheduleItem(id) {
+                if (userProgress.schedule) {
+                    userProgress.schedule = userProgress.schedule.filter(item => item.id !== id);
+                    saveProgress();
+                }
+            }
+
+            /**
+             * Updates the completion status of a schedule item.
+             * @param {string} id - The ID of the schedule item.
+             * @param {boolean} completed - The new completion status.
+             */
+            function updateScheduleItemCompletion(id, completed) {
+                if (userProgress.schedule) {
+                    const item = userProgress.schedule.find(item => item.id === id);
+                    if (item) {
+                        item.completed = completed;
+                        saveProgress();
+                    }
+                }
+            }
+
+            return {
+                initializeUserProgress,
+                saveProgress,
+                loadProgress,
+                getProgress,
+                updateTopicStatus,
+                updateTopicReviewStatus,
+                addScheduleItem,
+                deleteScheduleItem,
+                updateScheduleItemCompletion
+            };
+        })();
+
+        // --- UI Management Module ---
+        const UIManager = (function() {
+            // Declare DOM element variables
+            let subjectsContainer;
+            let overallProgressDiv; // Reference to the overall progress div
+            let overallProgressBar;
+            let overallProgressText;
+            let scheduleSubjectSelect;
+            let scheduleTopicSelect;
+            let addScheduleBtn;
+            let scheduleDateInput;
+            let scheduleTimeInput;
+            let scheduleNotesInput;
+            let upcomingScheduleList;
+            let pastScheduleList;
+            let topicsForReviewList;
+
+            let navOverview;
+            let navSchedule;
+            let navReviews;
+            let sidebarModulesContainer; // New container for modules in sidebar
+
+            let syllabusSection;
+            let scheduleSection;
+            let reviewsSection;
+
+            let _isInitialized = false; // Flag to track if DOM elements are initialized
+
+            /**
+             * Initializes references to all necessary DOM elements.
+             * This function must be called after the DOM is fully loaded.
+             */
+            function initializeDOMElements() {
+                subjectsContainer = document.getElementById('syllabusSection'); // Correctly reference the section itself
+                overallProgressDiv = document.getElementById('overallProgress'); // Get reference to overall progress div
+                overallProgressBar = document.getElementById('overallProgressBar');
+                overallProgressText = document.getElementById('overallProgressText');
+                scheduleSubjectSelect = document.getElementById('scheduleSubject');
+                scheduleTopicSelect = document.getElementById('scheduleTopic');
+                addScheduleBtn = document.getElementById('addScheduleBtn');
+                scheduleDateInput = document.getElementById('scheduleDate');
+                scheduleTimeInput = document.getElementById('scheduleTime');
+                scheduleNotesInput = document.getElementById('scheduleNotes');
+                upcomingScheduleList = document.getElementById('upcomingScheduleList');
+                pastScheduleList = document.getElementById('pastScheduleList');
+                topicsForReviewList = document.getElementById('topicsForReviewList');
+
+                navOverview = document.getElementById('navOverview');
+                navSchedule = document.getElementById('navSchedule');
+                navReviews = document.getElementById('navReviews');
+                sidebarModulesContainer = document.getElementById('sidebarModules');
+
+                syllabusSection = document.getElementById('syllabusSection');
+                scheduleSection = document.getElementById('scheduleSection');
+                reviewsSection = document.getElementById('reviewsSection');
+
+                // Set the initialized flag to true after all elements are assigned
+                _isInitialized = true;
+                console.log("UIManager: Elementos DOM inicializados.");
+            }
+
+            /**
+             * Returns the initialization status of the UIManager.
+             * @returns {boolean} True if DOM elements are initialized, false otherwise.
+             */
+            function isInitialized() {
+                return _isInitialized;
+            }
+
+            /**
+             * Sets up event listeners for tab switching and schedule actions.
+             * This function must be called after DOM elements are initialized.
+             */
+            function setupEventListeners() {
+                if (!_isInitialized) {
+                    console.error("UIManager não inicializado. Não foi possível configurar os event listeners.");
+                    return;
+                }
+                navOverview.addEventListener('click', (e) => { e.preventDefault(); showSection('overview'); });
+                navSchedule.addEventListener('click', (e) => { e.preventDefault(); showSection('schedule'); });
+                navReviews.addEventListener('click', (e) => { e.preventDefault(); showSection('reviews'); });
+
+                addScheduleBtn.addEventListener('click', handleAddScheduleItem);
+                scheduleSubjectSelect.addEventListener('change', populateScheduleTopics);
+                console.log("UIManager: Event listeners configurados.");
+            }
+
+            /**
+             * Shows the specified section and hides others, updating tab styles.
+             * @param {string} sectionName - The name of the section to show ('overview', 'schedule', 'reviews', or a subject ID for scrolling).
+             */
+            function showSection(sectionName) {
+                if (!_isInitialized) {
+                    console.warn("UIManager não inicializado. Não foi possível mostrar a seção.");
+                    return;
+                }
+
+                // Deactivate all main navigation links
+                document.querySelectorAll('.sidebar-nav-link').forEach(link => {
+                    link.classList.remove('active-nav-link');
+                });
+                // Deactivate all sidebar subject links
+                document.querySelectorAll('.sidebar-subject-link').forEach(link => {
+                    link.classList.remove('active-nav-link');
+                });
+
+
+                // Hide all main content sections
+                overallProgressDiv.classList.add('hidden');
+                syllabusSection.classList.add('hidden');
+                scheduleSection.classList.add('hidden');
+                reviewsSection.classList.add('hidden');
+
+                if (sectionName === 'overview') {
+                    overallProgressDiv.classList.remove('hidden');
+                    syllabusSection.classList.remove('hidden');
+                    navOverview.classList.add('active-nav-link');
+                    // Ensure all subject cards are visible when in overview
+                    document.querySelectorAll('.subject-card').forEach(card => card.classList.remove('hidden'));
+                } else if (sectionName === 'schedule') {
+                    scheduleSection.classList.remove('hidden');
+                    navSchedule.classList.add('active-nav-link');
+                } else if (sectionName === 'reviews') {
+                    reviewsSection.classList.remove('hidden');
+                    navReviews.classList.add('active-nav-link');
+                } else {
+                    // Assume it's a subject ID for scrolling
+                    overallProgressDiv.classList.remove('hidden'); // Show overall progress with subject cards
+                    syllabusSection.classList.remove('hidden');
+                    // Hide all subject cards first
+                    document.querySelectorAll('.subject-card').forEach(card => card.classList.add('hidden'));
+                    // Show only the selected subject card
+                    const targetSubjectCard = document.getElementById(`subject-card-${sectionName}`);
+                    if (targetSubjectCard) {
+                        targetSubjectCard.classList.remove('hidden');
+                        targetSubjectCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        // Activate the corresponding sidebar subject link
+                        const sidebarLink = document.querySelector(`.sidebar-subject-link[href="#${sectionName}"]`);
+                        if (sidebarLink) {
+                            sidebarLink.classList.add('active-nav-link');
+                        }
+                    } else {
+                        console.warn(`Subject card with ID ${sectionName} not found.`);
+                        // Fallback to overview if subject not found
+                        overallProgressDiv.classList.remove('hidden');
+                        syllabusSection.classList.remove('hidden');
+                        navOverview.classList.add('active-nav-link');
+                        document.querySelectorAll('.subject-card').forEach(card => card.classList.remove('hidden'));
+                    }
+                }
+                console.log(`UIManager: Seção '${sectionName}' exibida.`);
+            }
+
+            /**
+             * Renders all sections of the UI. This is typically called after data is loaded.
+             */
+            function renderAllSections() {
+                if (!_isInitialized) {
+                    console.warn("UIManager não inicializado. Chamada de renderAllSections ignorada.");
+                    return;
+                }
+                renderSyllabus();
+                renderSchedule();
+                renderReviewSection();
+                renderSidebar(); // Render sidebar content
+                // Ensure initial section is shown after all rendering
+                showSection('overview');
+                console.log("UIManager: Todas as seções renderizadas.");
+            }
+
+            /**
+             * Renders the syllabus section with topics and their progress.
+             */
+            function renderSyllabus() {
+                if (!subjectsContainer) {
+                    console.error("subjectsContainer não encontrado para renderSyllabus.");
+                    return;
+                }
+                subjectsContainer.innerHTML = ''; // Clear existing content
+                const userProgress = DataManager.getProgress();
+
+                syllabusModules.forEach(module => {
+                    // Create a header for the module if needed, or just render subjects
+                    const moduleHeader = document.createElement('h3');
+                    moduleHeader.className = 'col-span-full text-xl font-bold text-gray-700 mt-6 mb-4';
+                    moduleHeader.textContent = module.name;
+                    subjectsContainer.appendChild(moduleHeader);
+
+                    for (const subject in module.subjects) {
+                        const subjectCard = document.createElement('div');
+                        // Create a clean ID for scrolling
+                        const subjectId = `subject-card-${subject.replace(/[^a-zA-Z0-9-]/g, '').toLowerCase()}`;
+                        subjectCard.id = subjectId;
+                        subjectCard.className = 'subject-card';
+
+                        const subjectTitle = document.createElement('h2');
+                        subjectTitle.className = 'text-xl font-semibold text-gray-800 mb-3';
+                        subjectTitle.textContent = subject;
+                        subjectCard.appendChild(subjectTitle);
+
+                        // Progress bar for the current subject
+                        const subjectProgress = calculateSubjectProgress(subject);
+                        const progressBarContainer = document.createElement('div');
+                        progressBarContainer.className = 'progress-bar-container mb-3';
+                        const progressBar = document.createElement('div');
+                        progressBar.className = 'progress-bar';
+                        progressBar.style.width = `${subjectProgress}%`;
+                        progressBarContainer.appendChild(progressBar);
+                        subjectCard.appendChild(progressBarContainer);
+
+                        const progressText = document.createElement('p');
+                        progressText.className = 'text-gray-600 text-sm mb-4';
+                        progressText.textContent = `${subjectProgress.toFixed(0)}% Concluído (${(userProgress[subject] || []).filter(t => t.status === 'Concluído').length}/${(userProgress[subject] || []).length} tópicos)`;
+                        subjectCard.appendChild(progressText);
+
+                        const topicsList = document.createElement('div');
+                        topicsList.className = 'space-y-2';
+
+                        // Ensure userProgress[subject] exists before iterating
+                        const currentSubjectTopics = userProgress[subject] || [];
+                        currentSubjectTopics.forEach((topic, topicIndex) => {
+                            const topicItem = document.createElement('div');
+                            topicItem.className = 'topic-item';
+
+                            const topicName = document.createElement('span');
+                            topicName.className = 'text-gray-700 text-base flex-grow mr-2';
+                            topicName.textContent = topic.name;
+                            topicItem.appendChild(topicName);
+
+                            const statusSelect = document.createElement('select');
+                            statusSelect.className = 'status-select mr-2';
+                            statusSelect.innerHTML = `
+                                <option value="Não Iniciado" ${topic.status === "Não Iniciado" ? "selected" : ""}>Não Iniciado</option>
+                                <option value="Em Andamento" ${topic.status === "Em Andamento" ? "selected" : ""}>Em Andamento</option>
+                                <option value="Concluído" ${topic.status === "Concluído" ? "selected" : ""}>Concluído</option>
+                            `;
+                            statusSelect.addEventListener('change', (event) => {
+                                const newStatus = event.target.value;
+                                let completionDate = topic.completionDate;
+                                if (newStatus === "Concluído" && !completionDate) {
+                                    completionDate = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+                                } else if (newStatus !== "Concluído") {
+                                    completionDate = "";
+                                }
+                                DataManager.updateTopicStatus(subject, topicIndex, newStatus, completionDate);
+                                // Re-render to update date input and subject progress
+                                renderSyllabus();
+                                updateOverallProgress();
+                            });
+                            topicItem.appendChild(statusSelect);
+
+                            const dateInput = document.createElement('input');
+                            dateInput.type = 'date';
+                            dateInput.className = 'date-input mr-2';
+                            dateInput.value = topic.completionDate || '';
+                            dateInput.disabled = topic.status !== "Concluído"; // Disable if not completed
+                            dateInput.addEventListener('change', (event) => {
+                                DataManager.updateTopicStatus(subject, topicIndex, topic.status, event.target.value);
+                            });
+                            topicItem.appendChild(dateInput);
+
+                            const reviewToggle = document.createElement('input');
+                            reviewToggle.type = 'checkbox';
+                            reviewToggle.className = 'form-checkbox h-5 w-5 text-blue-600 rounded';
+                            reviewToggle.checked = topic.needsReview;
+                            reviewToggle.title = "Marcar para Revisão";
+                            reviewToggle.addEventListener('change', (event) => {
+                                DataManager.updateTopicReviewStatus(subject, topicIndex, event.target.checked, topic.reviewNotes);
+                                renderReviewSection(); // Re-render review section
+                            });
+                            topicItem.appendChild(reviewToggle);
+
+                            topicsList.appendChild(topicItem);
+                        });
+                        subjectCard.appendChild(topicsList);
+                        subjectsContainer.appendChild(subjectCard);
+                    }
+                });
+            }
+
+            /**
+             * Calculates the completion progress for a given subject.
+             * @param {string} subjectName - The name of the subject.
+             * @returns {number} The percentage of topics completed in the subject.
+             */
+            function calculateSubjectProgress(subjectName) {
+                const topics = DataManager.getProgress()[subjectName];
+                if (!topics || topics.length === 0) {
+                    return 0;
+                }
+                const completedTopics = topics.filter(topic => topic.status === "Concluído").length;
+                return (completedTopics / topics.length) * 100;
+            }
+
+            /**
+             * Updates the overall progress bar and text.
+             */
+            function updateOverallProgress() {
+                if (!overallProgressBar || !overallProgressText) {
+                    console.error("Elementos de progresso geral não encontrados.");
+                    return;
+                }
+                let totalTopics = 0;
+                let totalCompletedTopics = 0;
+                const userProgress = DataManager.getProgress();
+
+                syllabusModules.forEach(module => {
+                    for (const subject in module.subjects) {
+                        totalTopics += module.subjects[subject].length;
+                        // Safely access userProgress for completed topics
+                        const progressForSubject = userProgress[subject] || [];
+                        totalCompletedTopics += progressForSubject.filter(topic => topic.status === "Concluído").length;
+                    }
+                });
+
+
+                const overallPercentage = totalTopics === 0 ? 0 : (totalCompletedTopics / totalTopics) * 100;
+
+                overallProgressBar.style.width = `${overallPercentage}%`;
+                overallProgressText.textContent = `${overallPercentage.toFixed(0)}% Concluído (${totalCompletedTopics}/${totalTopics} tópicos)`;
+            }
+
+            /**
+             * Populates the subject dropdown in the schedule section.
+             */
+            function populateScheduleSubjects() {
+                if (!scheduleSubjectSelect || !scheduleTopicSelect) {
+                    console.error("Elementos de seleção de cronograma não encontrados.");
+                    return;
+                }
+                scheduleSubjectSelect.innerHTML = '<option value="">Selecione a Matéria</option>';
+                syllabusModules.forEach(module => {
+                    for (const subject in module.subjects) {
+                        const option = document.createElement('option');
+                        option.value = subject;
+                        option.textContent = subject;
+                        scheduleSubjectSelect.appendChild(option);
+                    }
+                });
+                scheduleTopicSelect.innerHTML = '<option value="">Selecione o Tópico</option>'; // Reset topics
+                scheduleTopicSelect.disabled = true;
+            }
+
+            /**
+             * Populates the topic dropdown in the schedule section based on the selected subject.
+             */
+            function populateScheduleTopics() {
+                if (!scheduleSubjectSelect || !scheduleTopicSelect) {
+                    console.error("Elementos de seleção de cronograma não encontrados.");
+                    return;
+                }
+                const selectedSubject = scheduleSubjectSelect.value;
+                scheduleTopicSelect.innerHTML = '<option value="">Selecione o Tópico</option>';
+                scheduleTopicSelect.disabled = true;
+
+                if (selectedSubject) {
+                    let foundTopics = [];
+                    syllabusModules.forEach(module => {
+                        if (module.subjects[selectedSubject]) {
+                            foundTopics = module.subjects[selectedSubject];
+                        }
+                    });
+
+                    if (foundTopics.length > 0) {
+                        foundTopics.forEach(topic => {
+                            const option = document.createElement('option');
+                            option.value = topic;
+                            option.textContent = topic;
+                            scheduleTopicSelect.appendChild(option);
+                        });
+                        scheduleTopicSelect.disabled = false;
+                    }
+                }
+            }
+
+            /**
+             * Handles the addition of a new schedule item.
+             */
+            function handleAddScheduleItem() {
+                if (!scheduleSubjectSelect || !scheduleTopicSelect || !scheduleDateInput || !scheduleTimeInput || !scheduleNotesInput) {
+                    console.error("Elementos do formulário de cronograma não encontrados.");
+                    return;
+                }
+                const subject = scheduleSubjectSelect.value;
+                const topic = scheduleTopicSelect.value;
+                const date = scheduleDateInput.value;
+                const time = scheduleTimeInput.value;
+                const notes = scheduleNotesInput.value.trim();
+
+                if (!subject || !topic || !date || !time) {
+                    showMessageBox("Por favor, preencha todos os campos obrigatórios (Matéria, Tópico, Data, Hora).", "error");
+                    return;
+                }
+
+                const newItem = { subject, topic, date, time, notes, completed: false };
+                DataManager.addScheduleItem(newItem);
+
+                // Clear form
+                scheduleSubjectSelect.value = "";
+                scheduleTopicSelect.value = "";
+                scheduleTopicSelect.disabled = true;
+                scheduleDateInput.value = "";
+                scheduleTimeInput.value = "";
+                scheduleNotesInput.value = "";
+
+                renderSchedule(); // Re-render schedule list
+            }
+
+            /**
+             * Renders the upcoming and past schedule items.
+             */
+            function renderSchedule() {
+                if (!upcomingScheduleList || !pastScheduleList) {
+                    console.error("Elementos da lista de cronograma não encontrados.");
+                    return;
+                }
+                upcomingScheduleList.innerHTML = '';
+                pastScheduleList.innerHTML = '';
+                const scheduleItems = DataManager.getProgress().schedule || [];
+                const now = new Date();
+
+                if (scheduleItems.length === 0) {
+                    upcomingScheduleList.innerHTML = '<p class="text-gray-600">Nenhuma sessão agendada.</p>';
+                    pastScheduleList.innerHTML = '<p class="text-gray-600">Nenhuma sessão anterior.</p>';
+                    return;
+                }
+
+                const sortedSchedule = scheduleItems.sort((a, b) => {
+                    const dateTimeA = new Date(`${a.date}T${a.time}`);
+                    const dateTimeB = new Date(`${b.date}T${b.time}`);
+                    return dateTimeA - dateTimeB;
+                });
+
+                let hasUpcoming = false;
+                let hasPast = false;
+
+                sortedSchedule.forEach(item => {
+                    const itemDateTime = new Date(`${item.date}T${item.time}`);
+                    const listItem = document.createElement('div');
+                    listItem.className = 'schedule-item bg-gray-50 p-3 rounded-lg shadow-sm';
+                    listItem.innerHTML = `
+                        <div class="flex-grow">
+                            <p class="font-semibold text-gray-800">${item.subject} - ${item.topic}</p>
+                            <p class="text-sm text-gray-600">${item.date} às ${item.time}</p>
+                            ${item.notes ? `<p class="text-xs text-gray-500 italic">${item.notes}</p>` : ''}
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <label class="flex items-center text-sm text-gray-700">
+                                <input type="checkbox" class="form-checkbox h-4 w-4 text-blue-600 rounded" ${item.completed ? 'checked' : ''} data-id="${item.id}">
+                                Concluído
+                            </label>
+                            <button class="text-red-500 hover:text-red-700 text-sm delete-schedule-btn" data-id="${item.id}">Excluir</button>
+                        </div>
+                    `;
+
+                    const checkbox = listItem.querySelector('input[type="checkbox"]');
+                    if (checkbox) { // Defensive check
+                        checkbox.addEventListener('change', (event) => {
+                            DataManager.updateScheduleItemCompletion(item.id, event.target.checked);
+                        });
+                    }
+
+                    const deleteButton = listItem.querySelector('.delete-schedule-btn');
+                    if (deleteButton) { // Defensive check
+                        deleteButton.addEventListener('click', () => {
+                            DataManager.deleteScheduleItem(item.id);
+                        });
+                    }
+
+                    if (itemDateTime >= now && !item.completed) {
+                        upcomingScheduleList.appendChild(listItem);
+                        hasUpcoming = true;
+                    } else {
+                        pastScheduleList.appendChild(listItem);
+                        hasPast = true;
+                    }
+                });
+
+                if (!hasUpcoming) {
+                    upcomingScheduleList.innerHTML = '<p class="text-gray-600">Nenhuma sessão agendada.</p>';
+                }
+                if (!hasPast) {
+                    pastScheduleList.innerHTML = '<p class="text-gray-600">Nenhuma sessão anterior.</p>';
+                }
+            }
+
+            /**
+             * Renders the list of topics marked for manual review.
+             */
+            function renderReviewSection() {
+                if (!topicsForReviewList) {
+                    console.error("Elemento da lista de revisão não encontrado.");
+                    return;
+                }
+                topicsForReviewList.innerHTML = '';
+                const userProgress = DataManager.getProgress();
+                let hasReviewTopics = false;
+
+                for (const subject in userProgress) {
+                    if (Array.isArray(userProgress[subject])) { // Ensure it's a subject array, not 'schedule'
+                        userProgress[subject].forEach((topic, topicIndex) => {
+                            if (topic.needsReview) {
+                                hasReviewTopics = true;
+                                const reviewItem = document.createElement('div');
+                                reviewItem.className = 'review-item bg-blue-50 p-3 rounded-lg shadow-sm';
+                                reviewItem.innerHTML = `
+                                    <div class="flex-grow">
+                                        <p class="font-semibold text-gray-800">${subject} - ${topic.name}</p>
+                                        <textarea class="text-input w-full mt-2" placeholder="Adicione suas notas de revisão aqui">${topic.reviewNotes || ''}</textarea>
+                                    </div>
+                                    <div class="ml-4">
+                                        <button class="text-red-500 hover:text-red-700 text-sm remove-review-btn" data-subject="${subject}" data-index="${topicIndex}">Remover da Revisão</button>
+                                    </div>
+                                `;
+                                const textarea = reviewItem.querySelector('textarea');
+                                if (textarea) { // Defensive check
+                                    textarea.addEventListener('change', (event) => {
+                                        DataManager.updateTopicReviewStatus(subject, topicIndex, true, event.target.value);
+                                    });
+                                }
+
+                                const removeBtn = reviewItem.querySelector('.remove-review-btn');
+                                if (removeBtn) { // Defensive check
+                                    removeBtn.addEventListener('click', () => {
+                                        DataManager.updateTopicReviewStatus(subject, topicIndex, false, ""); // Remove from review, clear notes
+                                        renderReviewSection(); // Re-render the list
+                                        renderSyllabus(); // Update checkbox in syllabus section
+                                    });
+                                }
+                                topicsForReviewList.appendChild(reviewItem);
+                            }
+                        });
+                    }
+                }
+
+                if (!hasReviewTopics) {
+                    topicsForReviewList.innerHTML = '<p class="text-gray-600">Nenhum tópico marcado para revisão.</p>';
+                }
+            }
+
+            /**
+             * Renders the dynamic modules and subjects in the sidebar.
+             */
+            function renderSidebar() {
+                if (!sidebarModulesContainer) {
+                    console.error("sidebarModulesContainer não encontrado para renderSidebar.");
+                    return;
+                }
+                sidebarModulesContainer.innerHTML = ''; // Clear existing content
+
+                syllabusModules.forEach(module => {
+                    const moduleDiv = document.createElement('div');
+                    moduleDiv.className = 'mb-4';
+
+                    const moduleToggle = document.createElement('div');
+                    moduleToggle.className = 'sidebar-module-toggle flex items-center mb-2';
+                    moduleToggle.innerHTML = `
+                        <svg class="w-4 h-4 mr-2 transform rotate-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        ${module.name}
+                    `;
+                    moduleDiv.appendChild(moduleToggle);
+
+                    const subjectListDiv = document.createElement('div');
+                    subjectListDiv.className = 'sidebar-subject-list space-y-1';
+                    moduleDiv.appendChild(subjectListDiv);
+
+                    // Toggle functionality for modules
+                    moduleToggle.addEventListener('click', () => {
+                        subjectListDiv.classList.toggle('hidden');
+                        moduleToggle.classList.toggle('collapsed');
+                    });
+
+                    for (const subject in module.subjects) {
+                        const subjectLink = document.createElement('a');
+                        const subjectId = `subject-card-${subject.replace(/[^a-zA-Z0-9-]/g, '').toLowerCase()}`;
+                        subjectLink.href = `#${subjectId}`; // Link to the subject card ID
+                        subjectLink.className = 'sidebar-subject-link flex items-center';
+                        subjectLink.innerHTML = `
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            ${subject}
+                        `;
+                        subjectLink.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            showSection(subjectId); // Use the subject card ID to show and scroll
+                        });
+                        subjectListDiv.appendChild(subjectLink);
+                    }
+                    sidebarModulesContainer.appendChild(moduleDiv);
+                });
+            }
+
+
+            return {
+                initializeDOMElements,
+                isInitialized, // Expose the new initialization status flag
+                setupEventListeners,
+                renderAllSections,
+                updateOverallProgress,
+                showSection,
+                renderSchedule,
+                renderReviewSection,
+                renderSidebar // Expose renderSidebar
+            };
+        })();
+
+        // --- Firebase Initialization and Auth ---
+        /**
+         * Initializes Firebase app and authentication.
+         * Sets up an auth state change listener to load user progress.
+         */
+        async function initializeFirebaseAndAuth() {
+            try {
+                if (!app) {
+                    app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+                    console.log("Firebase: App e Firestore inicializados.");
+                }
+
+                // Listen for auth state changes
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        currentUserId = user.uid;
+                        const userIdDisplay = document.getElementById('userIdDisplay');
+                        if (userIdDisplay) { // Defensive check
+                            userIdDisplay.textContent = `ID do Usuário: ${currentUserId}`;
+                        }
+                        isAuthReady = true;
+                        console.log("Firebase: Usuário autenticado. Carregando progresso...");
+                        await DataManager.loadProgress();
+                    } else {
+                        // Sign in anonymously if no token is provided or user is not authenticated
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                            console.log("Firebase: Autenticando com token personalizado.");
+                        } else {
+                            await signInAnonymously(auth);
+                            console.log("Firebase: Autenticando anonimamente.");
+                        }
+                        // The onAuthStateChanged listener will be called again with the new user
+                    }
+                });
+
+            } catch (error) {
+                console.error("Erro ao inicializar Firebase ou autenticar:", error);
+                showMessageBox("Erro ao carregar o aplicativo. Tente novamente.", "error");
+                document.getElementById('loadingOverlay').style.display = 'none';
+            }
+        }
+
+        // --- Application Entry Point ---
+        // Ensures the DOM is fully loaded before attempting to access elements or set up listeners.
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("DOM totalmente carregado. Inicializando a aplicação.");
+            UIManager.initializeDOMElements(); // 1. Initialize DOM elements first
+            UIManager.setupEventListeners();    // 2. Set up event listeners using initialized elements
+            initializeFirebaseAndAuth();        // 3. Initialize Firebase and start auth flow
+            // Initial section will be shown by renderAllSections after data loads
+        });
+    </script>
+</html>
